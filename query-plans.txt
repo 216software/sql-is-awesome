@@ -1,0 +1,52 @@
+This one is with the helpful constraint::
+
+    # explain analyze select * from v2;
+    +-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    |                                                                     QUERY PLAN                                                                      |
+    +-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Merge Join  (cost=80.80..166.92 rows=1 width=40) (actual time=0.042..0.052 rows=5 loops=1)                                                          |
+    |   Merge Cond: ((m2.move_column = m1.move_column) AND (m2.move_row = ((m1.move_row + 1))))                                                           |
+    |   Join Filter: (m1.player = m2.player)                                                                                                              |
+    |   Rows Removed by Join Filter: 3                                                                                                                    |
+    |   ->  Index Scan using moves_move_column_move_row_key on moves m2  (cost=0.15..65.55 rows=1160 width=40) (actual time=0.009..0.012 rows=13 loops=1) |
+    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.023..0.025 rows=13 loops=1)                                                       |
+    |         Sort Key: m1.move_column, ((m1.move_row + 1))                                                                                               |
+    |         Sort Method: quicksort  Memory: 25kB                                                                                                        |
+    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.006..0.009 rows=13 loops=1)                                  |
+    | Planning time: 0.249 ms                                                                                                                             |
+    | Execution time: 0.475 ms                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------------------------------------------------------------+
+
+And then I remove the constraint::
+
+    # alter table moves drop constraint moves_move_column_move_row_key ;
+
+And rerun it::
+
+    # explain analyze select * from v2;
+    +-----------------------------------------------------------------------------------------------------------------------+
+    |                                                      QUERY PLAN                                                       |
+    +-----------------------------------------------------------------------------------------------------------------------+
+    | Merge Join  (cost=161.29..190.30 rows=1 width=40) (actual time=0.071..0.093 rows=5 loops=1)                           |
+    |   Merge Cond: ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND (((m1.move_row + 1)) = m2.move_row)) |
+    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.043..0.045 rows=13 loops=1)                         |
+    |         Sort Key: m1.player, m1.move_column, ((m1.move_row + 1))                                                      |
+    |         Sort Method: quicksort  Memory: 25kB                                                                          |
+    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.008..0.011 rows=13 loops=1)    |
+    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.022..0.022 rows=13 loops=1)                         |
+    |         Sort Key: m2.player, m2.move_column, m2.move_row                                                              |
+    |         Sort Method: quicksort  Memory: 25kB                                                                          |
+    |         ->  Seq Scan on moves m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.000..0.002 rows=13 loops=1)    |
+    | Planning time: 0.178 ms                                                                                               |
+    | Execution time: 0.131 ms                                                                                              |
+    +-----------------------------------------------------------------------------------------------------------------------+
+
+
+
+These can be dizzying to look at, but the important thing to realize is that
+after I dropped that constraint, I went from having just one Seq scan in the
+top block to two.
+
+A "Seq scan" is when the database has to check every row in a table.  In other words, it does a O(n) operation.
+
+.. vim: set syntax=rst:
