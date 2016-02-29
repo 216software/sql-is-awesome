@@ -1,0 +1,417 @@
+++++++++++++++
+SQL Is Awesome
+++++++++++++++
+
+.. contents::
+
+Check for a winning game in Connect 4
+=====================================
+
+.. image:: http://gamescrafters.berkeley.edu/games/i/connect4/connect4_04.jpg
+
+Check for two in a row vertically
+---------------------------------
+
+1.  Compare every checker on the board on to every other checker on the board
+2.  Filter by when the checkers are the same color
+3.  And the first checker is is in the same column
+4.  And the second checker is exactly one row above the first one
+
+In python, it might look like this::
+
+    s = set()
+
+    for m1 in moves:
+
+        for m2 in moves:
+
+            if m1.color == m2.color \
+            and m1.move_column == m2.move_column \
+            and m1.move_row + 1 == m2.move_row:
+
+                s.add(m1)
+
+    if s:
+        print("we have two in a row!")
+
+If we have 11 moves on the board, then we run that if clause 11 * 11
+times.  In other words, this is a O(n^2) algorithm.
+
+Check for four in a row vertically
+----------------------------------
+
+Use the same approach, but instead of a double loop, use a quadruple
+loop::
+
+    class Move(object):
+
+        def vert_match(self, other):
+
+            if self.color == other.color \
+            and self.move_column == other.move_column \
+            and self.move_row + 1 == other.move_row:
+
+                return True
+
+    for m1 in moves:
+        for m2 in moves:
+            for m3 in moves:
+                for m4 in moves:
+
+                    if m1.vert_matches(m2) \
+                    and m2.vert_matches(m3) \
+                    and m3.vert_matches(m4):
+
+                        s.add(m1)
+
+If there are 11 moves on the board, that innermost code runs 11 * 11 *
+11 * 11 times (O(n^4)).
+
+Check 4 in a row vertically, horizontally, and diagonally
+---------------------------------------------------------
+
+Add methods for each::
+
+    def horiz_match(self, other):
+
+        """
+        (0,0) matches (1, 0)
+        """
+
+        if self.color == other.color \
+        and self.move_column + 1 == other.move_column \
+        and self.move_row == other.move_row:
+
+            return True
+
+    def diag_up_match(self, other):
+
+        """
+        (0,0) matches (1, 1)
+        """
+
+        if self.color == other.color \
+        and self.move_column + 1 == other.move_column \
+        and self.move_row + 1 == other.move_row:
+
+            return True
+
+    def diag_dn_match(self, other):
+
+        """
+        (0,1) matches (1, 0)
+        """
+
+        if self.color == other.color \
+        and self.move_column + 1 == other.move_column \
+        and self.move_row - 1 == other.move_row:
+
+            return True
+
+Now adjust that innermost block::
+
+    for m1 in moves:
+        for m2 in moves:
+            for m3 in moves:
+                for m4 in moves:
+
+                    if m1.vert_matches(m2) \
+                    and m2.vert_matches(m3) \
+                    and m3.vert_matches(m4):
+
+                        s.add(m1)
+
+                    elif m1.horiz_matches(m2) \
+                    and m2.horiz_matches(m3) \
+                    and m3.horiz_matches(m4):
+
+                        s.add(m1)
+
+                    elif m1.diag_up_matches(m2) \
+                    and m2.diag_up_matches(m3) \
+                    and m3.diag_up_matches(m4):
+
+                        s.add(m1)
+
+                    elif m1.diag_dn_matches(m2) \
+                    and m2.diag_dn_matches(m3) \
+                    and m3.diag_dn_matches(m4):
+
+                        s.add(m1)
+
+We do more work in that innermost loop, but we'd still call this a
+O(n^4) algorithm, because the amount of work doesn't vary with the
+amount of input.
+
+Incidental: why is this not OK?
+-------------------------------
+
+You might think you want to replace all those if and elif clauses with
+just a single function that tests all the ways, like this::
+
+    def match_any(self, other):
+
+        if self.vert_match(other) \
+        or self.horiz_match(other) \
+        or self.diag_up_match(other) \
+        or self.diag_dn_match(other):
+
+            return True
+
+But that will give you false positives!  You could match once
+vertically, then the next horizontally.
+
+How to do it in SQL
+-------------------
+
+Just in case it isn't obvious, this python code::
+
+    for m1 in moves:
+        for m2 in moves:
+            do_something(m1, m2)
+
+and this SQL::
+
+    select do_something(m1.*, m2.*)
+    from moves m1
+    cross join moves m2
+
+Are pretty much the same thing.
+
+The cross join just means "keep the whole cartesian product".
+
+Make a table::
+
+    create table moves (
+        player text not null check (player = 'red' or player = 'black'),
+        move_column integer not null check (move_column between 0 and 7),
+        move_row integer not null check (move_row between 0 and 6),
+        unique (move_column, move_row)
+    );
+
+Check for two in a row vertically::
+
+    select m1.player, m1.move_column, m1.move_row
+    from moves m1
+
+    join moves m2
+    on m1.player = m2.player
+
+    where m1.move_column = m2.move_column
+    and m1.move_row + 1 = m2.move_row;
+
+
+
+
+You can find out if this is O(n^2) by using explain analyze with this
+query::
+
+    # explain analyze select m1.*
+    from moves m1
+    join moves m2
+    on m1.player = m2.player
+    where m1.move_column = m2.move_column
+    and m1.move_row + 1 = m2.move_row;
+
+And you'll get this helpful output::
+
+    +-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    |                                                                     QUERY PLAN                                                                      |
+    +-----------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Merge Join  (cost=80.80..166.92 rows=1 width=40) (actual time=0.042..0.052 rows=5 loops=1)                                                          |
+    |   Merge Cond: ((m2.move_column = m1.move_column) AND (m2.move_row = ((m1.move_row + 1))))                                                           |
+    |   Join Filter: (m1.player = m2.player)                                                                                                              |
+    |   Rows Removed by Join Filter: 3                                                                                                                    |
+    |   ->  Index Scan using moves_move_column_move_row_key on moves m2  (cost=0.15..65.55 rows=1160 width=40) (actual time=0.009..0.012 rows=13 loops=1) |
+    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.023..0.025 rows=13 loops=1)                                                       |
+    |         Sort Key: m1.move_column, ((m1.move_row + 1))                                                                                               |
+    |         Sort Method: quicksort  Memory: 25kB                                                                                                        |
+    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.006..0.009 rows=13 loops=1)                                  |
+    | Planning time: 0.249 ms                                                                                                                             |
+    | Execution time: 0.475 ms                                                                                                                            |
+    +-----------------------------------------------------------------------------------------------------------------------------------------------------+
+
+These can be dizzying to look at!  You have to read them from the bottom
+to the top.  The each line includes the costs of the indented lines
+below it.
+
+A "Seq scan" is when the database checks every row in a table.  In other
+words, it does a O(n) operation.
+
+There's only one Seq scan in that query::
+
+    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.006..0.009 rows=13 loops=1)                                  |
+
+
+And then later, there's this code::
+
+    |   ->  Index Scan using moves_move_column_move_row_key on moves m2  (cost=0.15..65.55 rows=1160 width=40) (actual time=0.009..0.012 rows=13 loops=1) |
+
+In other words, the database doesn't loop through the moves table a
+second time.  It uses that index to find matching rows.  That index is a
+regular btree index, so lookups are gonna be O(log(n, 2), and that is
+vastly quicker.
+
+But I never created an index! But when I made this constraint::
+
+    unique (move_column, move_row)
+
+the database made an index to enforce that constraint.  And now, the
+database uses that index to avoid checking every row in m2.
+
+I can remove the constraint::
+
+    # alter table moves drop constraint moves_move_column_move_row_key ;
+
+And rerun that query::
+
+    # explain analyze select m1.*
+    from moves m1
+    join moves m2
+    on m1.player = m2.player
+    where m1.move_column = m2.move_column
+    and m1.move_row + 1 = m2.move_row;
+
+    +-----------------------------------------------------------------------------------------------------------------------+
+    |                                                      QUERY PLAN                                                       |
+    +-----------------------------------------------------------------------------------------------------------------------+
+    | Merge Join  (cost=161.29..190.30 rows=1 width=40) (actual time=0.071..0.093 rows=5 loops=1)                           |
+    |   Merge Cond: ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND (((m1.move_row + 1)) = m2.move_row)) |
+    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.043..0.045 rows=13 loops=1)                         |
+    |         Sort Key: m1.player, m1.move_column, ((m1.move_row + 1))                                                      |
+    |         Sort Method: quicksort  Memory: 25kB                                                                          |
+    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.008..0.011 rows=13 loops=1)    |
+    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.022..0.022 rows=13 loops=1)                         |
+    |         Sort Key: m2.player, m2.move_column, m2.move_row                                                              |
+    |         Sort Method: quicksort  Memory: 25kB                                                                          |
+    |         ->  Seq Scan on moves m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.000..0.002 rows=13 loops=1)    |
+    | Planning time: 0.178 ms                                                                                               |
+    | Execution time: 0.131 ms                                                                                              |
+    +-----------------------------------------------------------------------------------------------------------------------+
+
+Now, there are two seq scans::
+
+    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.008..0.011 rows=13 loops=1)    |
+    ...
+    |         ->  Seq Scan on moves m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.000..0.002 rows=13 loops=1)    |
+
+
+This is just the tip of the iceberg
+-----------------------------------
+
+Just by adding a data-validation
+constraint, we changed out algorithm from O(n^2) to O(n * log(n)).
+
+Check for 4 in a row, any direction
+-----------------------------------
+
+It looks like this::
+
+    create or replace view winning_games
+    as
+    select m1.player, m1.move_column, m1.move_row
+    from moves m1
+
+    join moves m2
+    on m1.player = m2.player
+
+    join moves m3
+    on m2.player = m3.player
+
+    join moves m4
+    on m3.player = m4.player
+
+    where
+    -- vert (column, row) (0, 0) matches (0, 1)
+    (
+        m1.move_column = m2.move_column
+        and m1.move_row + 1 = m2.move_row
+
+        and m2.move_column = m3.move_column
+        and m2.move_row + 1 = m3.move_row
+
+        and m3.move_column = m4.move_column
+        and m3.move_row + 1 = m4.move_row
+    )
+
+    -- horiz (0, 0) matches (1, 0)
+    or (
+
+        m1.move_column + 1 = m2.move_column
+        and m1.move_row = m2.move_row
+
+        and m2.move_column + 1 = m3.move_column
+        and m2.move_row = m3.move_row
+
+        and m3.move_column + 1 = m4.move_column
+        and m3.move_row = m4.move_row
+
+    )
+
+    -- diag up (0, 0) matches (1, 1)
+    or (
+
+        m1.move_column + 1 = m2.move_column
+        and m1.move_row + 1 = m2.move_row
+
+        and m2.move_column + 1 = m3.move_column
+        and m2.move_row + 1 = m3.move_row
+
+        and m3.move_column + 1 = m4.move_column
+        and m3.move_row + 1 = m4.move_row
+
+    )
+
+    -- diag dn (0, 1) matches (1, 0)
+    or (
+
+        m1.move_column + 1 = m2.move_column
+        and m1.move_row - 1 = m2.move_row
+
+        and m2.move_column + 1 = m3.move_column
+        and m2.move_row - 1 = m3.move_row
+
+        and m3.move_column + 1 = m4.move_column
+        and m3.move_row - 1 = m4.move_row
+
+    )
+    ;
+
+
+
+
+
+Incidental: how to not use SQL and not use O(n^4) time
+------------------------------------------------------
+
+Do what the database does!  Build a binary search tree for your data.
+Then use that to check for matches.
+
+How I modeled nurse schedules for OnShift
+=========================================
+
+How I modeled parking spaces for SpotHero
+=========================================
+
+Crossing the streams in ghostbusters
+====================================
+
+Today's necessary evil becomes tomorrow's standard practice
+
+EAV tables
+----------
+
+App code constraints
+--------------------
+
+n+1 queries
+-----------
+
+denormalization
+---------------
+
+
+
+
+
+.. vim: set syntax=rst:

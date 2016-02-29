@@ -47,7 +47,8 @@ on m1.player = m2.player
 where m1.move_column = m2.move_column
 and m1.move_row + 1 = m2.move_row;
 
--- Check 4-in-
+-- Check for 4 in a row, any direction
+
 create or replace view winning_games
 as
 select m1.player, m1.move_column, m1.move_row

@@ -1,0 +1,31 @@
+body
+{
+    max-width: 60em;
+    margin: auto;
+}
+
+@media (max-width: 1000px) {
+
+    body {
+        font-size:18px;
+        max-width: 40em;
+    }
+
+	pre {
+		border: 3px dotted gray;
+		font-size: 10px;
+	}
+}
+
+img
+{
+    display:block;
+    margin:auto;
+    margin-top:50px;
+    margin-bottom:50px;
+}
+
+ol.upperalpha
+{
+    list-style-type:upper-alpha;
+}
