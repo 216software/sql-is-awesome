@@ -1,3 +1,12 @@
+drop table if exists moves_simple;
+
+create table moves_simple
+(
+    player text,
+    move_column integer,
+    move_row integer
+);
+
 drop table if exists moves cascade;
 
 create table moves (
@@ -128,5 +137,7 @@ values
 ('red', 2, 3),
 ('red', 2, 4);
 
-
-
+insert into moves_simple
+(player, move_column, move_row)
+select player, move_column, move_row
+from moves;

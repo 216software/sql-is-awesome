@@ -1,0 +1,32 @@
+Find qualified nurses for an open shift
+=======================================
+
+Shifts have different requirements
+----------------------------------
+
+Each shift on a nursing home schedule has certain required attributes.  For
+example, the 7 AM to 7 PM Monday shift needs a nurse with these credentials:
+
+*   requires RN
+*   involves care for dementia patients
+*   requires a nurse manager
+
+But the night nurse shift only needs these:
+
+*   requires LPN
+*   involves care for dementia patients
+
+Each nurse has his or her own list of credentials.
+
+Make some tables
+----------------
+
+For each employee, count up the matching credentials that are in the set of
+requirements for this shift.
+
+
+
+
+
+
+.. vim: set syntax=rst:
