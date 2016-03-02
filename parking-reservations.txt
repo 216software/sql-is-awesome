@@ -3,9 +3,38 @@ Fun with parking spaces
 
 .. image:: ./images/spothero-1.png
 
+Find nearby vacant spots
+------------------------
 
-Figuring out pricing was fun
-----------------------------
+::
+
+    select *
+    from garages g
+
+    -- only grab spots not reserved during this time
+    where not exists (
+        select *
+        from reservations r
+        where (r.start, r.end) overlaps (%(start)s, %(end)s)
+    )
+
+    -- grab spots within 500 meters
+    and st_dwithin(g.position, %(user position)s, 500)
+
+    order by st_distance(g.position, %(user position)s)
+    limit 100
+
+Another example of query plan magic
+-----------------------------------
+
+We could grab all nearby spots and filter to those that were not
+reserved, or grab all not-reserved spots, and filter to those nearby.
+
+The query plan looks at the selectivity of the two where clauses to
+figure out which to run first.
+
+Figuring out pricing was the most fun
+--------------------------------------
 
 Each garage had their own price rules, for example:
 
@@ -15,11 +44,9 @@ Each garage had their own price rules, for example:
 *   But if there's a baseball game that night, the night time price goes
     to $20, starting at 4 PM.
 
-Finding nearby garages involved GIS search
-------------------------------------------
+*   If I have 10 spots, when I'm down to the last two, the price doubles
 
-Finding availability involved time search
------------------------------------------
+This part was tricky :)
 
 
 
