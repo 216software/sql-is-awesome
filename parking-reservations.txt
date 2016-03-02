@@ -1,4 +1,27 @@
-How I modeled parking spaces for SpotHero
-=========================================
+Fun with parking spaces
+=======================
+
+.. image:: ./images/spothero-1.png
+
+
+Figuring out pricing was fun
+----------------------------
+
+Each garage had their own price rules, for example:
+
+*   Arrive 8 AM to 8 PM and pay $10
+*   Arrive after 8 PM until 8 AM and pay $5
+
+*   But if there's a baseball game that night, the night time price goes
+    to $20, starting at 4 PM.
+
+Finding nearby garages involved GIS search
+------------------------------------------
+
+Finding availability involved time search
+-----------------------------------------
+
+
+
 
 .. vim: set syntax=rst:

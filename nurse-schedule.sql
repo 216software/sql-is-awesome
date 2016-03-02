@@ -27,8 +27,9 @@ values
 drop table if exists shift_requirements cascade;
 
 create table shift_requirements (
-	shift text not null references shifts (title),
-	requirement text not null references credentials (title)
+	shift text references shifts (title),
+	requirement text references credentials (title),
+    primary key (shift, requirement)
 );
 
 insert into shift_requirements
@@ -57,8 +58,9 @@ values
 drop table if exists nurse_credentials cascade;
 
 create table nurse_credentials (
-	nurse text not null references nurses (display_name),
-	credential text not null references credentials (title)
+	nurse text references nurses (display_name),
+	credential text references credentials (title),
+    primary key (nurse, credential)
 );
 
 insert into nurse_credentials
@@ -75,17 +77,20 @@ values
 ('Bob', 'Nurse manager')
 ;
 
-with reqs as (
-    select requirement
-    from shift_requirements
-    where shift = 'night shift'
-),
+select nurse, count(*)
+from nurse_credentials
+join shift_requirements
+on nurse_credentials.credential = shift_requirements.requirement
+and shift_requirements.shift = 'night shift'
+group by 1
+;
 
-a as (
+with a as (
     select nurse, count(*)
     from nurse_credentials
-    join reqs
-    on nurse_credentials.credential = reqs.requirement
+    join shift_requirements
+    on nurse_credentials.credential = shift_requirements.requirement
+    and shift_requirements.shift = 'night shift'
     group by 1
 
 ),
@@ -101,3 +106,6 @@ select b.shift, a.nurse
 from a
 join b
 on a.count = b.count;
+
+
+

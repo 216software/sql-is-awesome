@@ -419,16 +419,18 @@ My favorite approach
 1.  Generate every possible winning game and store them in a hash-indexed
     table.
 
-2.  After every move, compare the board to that indexed table:
+2.  After every move, compare the board to that indexed table.
 
-**O(1)**
-
-The punchlines
---------------
+Punchlines
+----------
 
 *   Tables are not just arrays on disk!
+
 *   Database constraints often improve performance dramatically
+
 *   Query planners may execute the same SQL query in different ways
     depending on available indexes
+
+*   Store big nasty queries in views for easy reuse
 
 .. vim: set syntax=rst:

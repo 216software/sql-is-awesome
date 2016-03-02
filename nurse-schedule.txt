@@ -4,19 +4,21 @@ Find qualified nurses for an open shift
 Shifts have different requirements
 ----------------------------------
 
-Each shift on a nursing home schedule has certain required attributes.  For
-example, the 7 AM to 7 PM Monday shift needs a nurse with these credentials:
+The day shift has these requirements
 
-*   requires RN
+*   RN
 *   involves care for dementia patients
 *   requires a nurse manager
 
 But the night nurse shift only needs these:
 
-*   requires LPN
+*   LPN
 *   involves care for dementia patients
 
-Each nurse has his or her own list of credentials.
+Each nurse has his or her own list of credentials, e.g. nurse Matt:
+
+*   LPN
+*   can handle dementia patients
 
 Make some tables
 ----------------
@@ -50,10 +52,148 @@ Make some tables
 Find candidates for the night shift
 -----------------------------------
 
-For each employee, count up the matching credentials that are in the set of
-requirements for this shift::
+For each employee, count up the matching credentials that are in the set
+of requirements for this shift::
+
+    select nurse, count(*)
+    from nurse_credentials
+    join shift_requirements
+    on nurse_credentials.credential = shift_requirements.requirement
+    and shift_requirements.shift = 'night shift'
+    group by 1;
+
+Now count how many requirements this night shift has::
+
+    select shift, count(*)
+    from shift_requirements
+    where shift = 'night shift'
+    group by 1;
 
 
+Join the two groups, keeping where the count matches::
+
+    with a as (
+        select nurse, count(*)
+        from nurse_credentials
+        join shift_requirements
+        on nurse_credentials.credential = shift_requirements.requirement
+        and shift_requirements.shift = 'night shift'
+        group by 1
+
+    ),
+
+    b as (
+        select shift, count(*)
+        from shift_requirements
+        where shift = 'night shift'
+        group by 1
+    )
+
+    select b.shift, a.nurse
+    from a
+    join b
+    on a.count = b.count;
+
+For all shifts, find qualified workers
+--------------------------------------
+
+For every (nurse, shift) combination, figure out how many credentials
+for that shift each nurse has::
+
+    select nurse_credentials.nurse, shift_requirements.shift,
+    count(*) as credentials_count
+
+    from nurse_credentials
+
+    join shift_requirements
+    on nurse_credentials.credential = shift_requirements.requirement
+
+    group by 1, 2;
+
+    +-------+-------------+-------------------+
+    | nurse |    shift    | credentials_count |
+    +-------+-------------+-------------------+
+    | Matt  | day shift   |                 1 |
+    | Alice | day shift   |                 3 |
+    | Bob   | day shift   |                 3 |
+    | Bob   | night shift |                 1 |
+    | Alice | night shift |                 2 |
+    | Matt  | night shift |                 2 |
+    +-------+-------------+-------------------+
+
+
+Now count up how many credentials each shift needs::
+
+    select nurse_credentials.nurse, shift_requirements.shift,
+    count(*) as requirements_count
+
+    from nurse_credentials
+    join shift_requirements
+    on nurse_credentials.credential = shift_requirements.requirement
+    group by 1, 2;
+
+    +-------+-------------+--------------------+
+    | nurse |    shift    | requirements_count |
+    +-------+-------------+--------------------+
+    | Matt  | day shift   |                  1 |
+    | Alice | day shift   |                  3 |
+    | Bob   | day shift   |                  3 |
+    | Bob   | night shift |                  1 |
+    | Alice | night shift |                  2 |
+    | Matt  | night shift |                  2 |
+    +-------+-------------+--------------------+
+
+
+Now, join the two, on the name of the shift, and when credentials_count
+matches requirements_count::
+
+    with a as (
+
+        select nurse_credentials.nurse, shift_requirements.shift,
+        count(*) as credentials_count
+
+        from nurse_credentials
+        join shift_requirements
+        on nurse_credentials.credential = shift_requirements.requirement
+        group by 1, 2
+
+    ),
+
+    b as (
+
+        select shift_requirements.shift, count(*) as requirements_count
+        from shift_requirements
+        group by 1
+
+    )
+
+    select a.shift, a.nurse
+
+    from a
+    join b
+    on a.shift = b.shift
+    and a.credentials_count = b.requirements_count
+    order by 1, 2
+    ;
+
+    +-------------+-------+
+    |    shift    | nurse |
+    +-------------+-------+
+    | day shift   | Alice |
+    | day shift   | Bob   |
+    | night shift | Alice |
+    | night shift | Matt  |
+    +-------------+-------+
+
+
+Punchlines
+----------
+
+*   Ask for help!  I got this solution because somebody on
+    thepostgresql-users mailing list told me about an old book called
+    SQL Puzzles and Answers.
+
+*   CTE's (the with stuff) make queries really easy to read
 
 
 .. vim: set syntax=rst:
