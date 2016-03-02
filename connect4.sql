@@ -14,7 +14,7 @@ create table moves (
     move_column integer not null check (move_column between 0 and 7),
     move_row integer not null check (move_row between 0 and 6),
 
-    unique (move_column, move_row)
+    primary key (move_column, move_row)
 
 );
 

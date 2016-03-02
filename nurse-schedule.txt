@@ -21,10 +21,37 @@ Each nurse has his or her own list of credentials.
 Make some tables
 ----------------
 
+::
+
+    create table credentials (
+        title text primary key
+    );
+
+    create table shifts (
+        title text primary key
+    );
+
+
+    create table shift_requirements (
+        shift text not null references shifts (title),
+        requirement text not null references credentials (title)
+    );
+
+    create table nurses (
+        display_name text primary key
+    );
+
+    create table nurse_credentials (
+        nurse text not null references nurses (display_name),
+        credential text not null references credentials (title)
+    );
+
+
+Find candidates for the night shift
+-----------------------------------
+
 For each employee, count up the matching credentials that are in the set of
-requirements for this shift.
-
-
+requirements for this shift::
 
 
 

@@ -59,7 +59,9 @@ loop::
                         s.add(m1)
 
 If there are 11 moves on the board, that innermost code runs 11 * 11 *
-11 * 11 times (O(n^4)).
+11 * 11 (14,641) times.
+
+With 16 moves, that's 65k comparisons.
 
 Check 4 in a row vertically, horizontally, and diagonally
 ---------------------------------------------------------
@@ -214,26 +216,15 @@ You can (kind of) find out if this is O(n^2) by looking at the query plan::
     on m1.player = m2.player
     and m1.move_column = m2.move_column
     and m1.move_row + 1 = m2.move_row;
-    +---------------------------------------------------------------------------------------------------------------------------+
-    |                                                        QUERY PLAN                                                         |
-    +---------------------------------------------------------------------------------------------------------------------------+
-    | Merge Join  (cost=161.29..190.30 rows=1 width=40) (actual time=0.108..0.143 rows=5 loops=1)                               |
-    |   Merge Cond: ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND (((m1.move_row + 1)) = m2.move_row))     |
-    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.063..0.065 rows=13 loops=1)                             |
-    |         Sort Key: m1.player, m1.move_column, ((m1.move_row + 1))                                                          |
-    |         Sort Method: quicksort  Memory: 25kB                                                                              |
-    |         ->  Seq Scan on moves_simple m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.014..0.016 rows=13 loops=1) |
-    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.036..0.039 rows=13 loops=1)                             |
-    |         Sort Key: m2.player, m2.move_column, m2.move_row                                                                  |
-    |         Sort Method: quicksort  Memory: 25kB                                                                              |
-    |         ->  Seq Scan on moves_simple m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.002..0.007 rows=13 loops=1) |
-    | Planning time: 0.137 ms                                                                                                   |
-    | Execution time: 0.186 ms                                                                                                  |
-    +---------------------------------------------------------------------------------------------------------------------------+
+
+.. image:: ./images/query-plan-simple-moves.png
 
 These can be dizzying to look at!  You have to read them from the bottom
-to the top.  The each line includes the costs of the indented lines
-below it.
+to the top.  Each line includes the costs of the indented lines below
+it.
+
+The very top line shows the expected cost and the actual cost of the
+entire query.
 
 A "Seq scan" is when the database checks every row in a table.  In other
 words, it does a O(n) operation.
@@ -244,14 +235,9 @@ Here's what is happening in there:
 2.  Then it sorts that new copy of m2 on (player, move_column, move_row)
 3.  The database seq scans m1 and makes a copy.
 4.  Then it sorts that copy of m1 by (player, move_column, move_row).
-
 5.  It merge-joins the two sorted copies together, using the key::
 
     ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND (((m1.move_row + 1)) = m2.move_row))
-
-
-Estimate complexity of that query plan
---------------------------------------
 
 *   Each seq scan costs O(n), but they are not nested one inside the other!
 *   Sorting the results of each Seq scan costs O(n * log(n))
@@ -265,74 +251,42 @@ Which is really just::
 
     O(n * log(n))
 
-Measure real-world cost
------------------------
+
+Now add some constraints
+------------------------
+
+In real life, I would make the moves table like this::
+
+    create table moves (
+        player text not null check (player = 'red' or player = 'black'),
+        move_column integer not null check (move_column between 0 and 7),
+        move_row integer not null check (move_row between 0 and 6),
+        primary key (move_column, move_row)
+    );
+
+I just added a bunch of constraints to protect against garbage inputs,
+and I added a primary key [#]_.
 
 
+That primary key improves performance
+-------------------------------------
 
-Later
------
-
-There's only one Seq scan in that query::
-
-    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.006..0.009 rows=13 loops=1)                                  |
-
-And then later, there's this code::
-
-    |   ->  Index Scan using moves_move_column_move_row_key on moves m2  (cost=0.15..65.55 rows=1160 width=40) (actual time=0.009..0.012 rows=13 loops=1) |
-
-The database uses an index to find matching rows.  I never created an index,
-but when I made this constraint::
-
-    unique (move_column, move_row)
-
-the database made an index to enforce that constraint.  And now, the database
-uses that index to avoid checking every row in m2.  That index is a regular
-btree index, so lookups are gonna be O(log(n, 2), and that is vastly quicker.
-
-I can remove the constraint::
-
-    # alter table moves drop constraint moves_move_column_move_row_key ;
-
-And rerun that query::
+I can use the exact same query::
 
     # explain analyze select m1.*
-    from moves m1
-    join moves m2
-    on m1.player = m2.player
-    where m1.move_column = m2.move_column
-    and m1.move_row + 1 = m2.move_row;
+    connect4-# from moves m1
+    connect4-# cross join moves m2
+    connect4-# where m1.player = m2.player
+    connect4-# and m1.move_column = m2.move_column
+    connect4-# and m1.move_row + 1 = m2.move_row
+    connect4-# ;
 
-    +-----------------------------------------------------------------------------------------------------------------------+
-    |                                                      QUERY PLAN                                                       |
-    +-----------------------------------------------------------------------------------------------------------------------+
-    | Merge Join  (cost=161.29..190.30 rows=1 width=40) (actual time=0.071..0.093 rows=5 loops=1)                           |
-    |   Merge Cond: ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND (((m1.move_row + 1)) = m2.move_row)) |
-    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.043..0.045 rows=13 loops=1)                         |
-    |         Sort Key: m1.player, m1.move_column, ((m1.move_row + 1))                                                      |
-    |         Sort Method: quicksort  Memory: 25kB                                                                          |
-    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.008..0.011 rows=13 loops=1)    |
-    |   ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.022..0.022 rows=13 loops=1)                         |
-    |         Sort Key: m2.player, m2.move_column, m2.move_row                                                              |
-    |         Sort Method: quicksort  Memory: 25kB                                                                          |
-    |         ->  Seq Scan on moves m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.000..0.002 rows=13 loops=1)    |
-    | Planning time: 0.178 ms                                                                                               |
-    | Execution time: 0.131 ms                                                                                              |
-    +-----------------------------------------------------------------------------------------------------------------------+
+.. image:: ./images/query-plan-moves.png
 
-Now, there are two seq scans::
+Stuff to notice:
 
-    |         ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.008..0.011 rows=13 loops=1)    |
-    ...
-    |         ->  Seq Scan on moves m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.000..0.002 rows=13 loops=1)    |
-
-
-SQL Tables are not just arrays on disk
---------------------------------------
-
-Just by adding a data-validation constraint, we changed out algorithm from
-O(n^2) to O(n * log(n)).
-
+*   there's only one seq scan now
+*   the expected time fell to 166.92 ms from 190.30
 
 Check for 4 in a row, any direction
 -----------------------------------
@@ -415,37 +369,8 @@ Comparison: python vs SQL
 The python version is O(n^4), but what's the big O of the SQL version?::
 
     # explain analyze select * from winning_games ;
-    +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    |
-    +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    | Merge Join  (cost=322.57..27712.43 rows=1 width=40) (actual time=2.559..4.015 rows=1 loops=1)
-    |   Merge Cond: (m1.player = m3.player)
-    |   Join Filter: (((m1.move_column = m2.move_column) AND ((m1.move_row + 1) = m2.move_row) AND (m2.move_column = m3.move_column) AND ((m2.move_row + 1) = m3.move_row) AND (m3.move_column = m4.move_
-    |   Rows Removed by Join Filter: 3696
-    |   ->  Merge Join  (cost=161.29..268.01 rows=6728 width=80) (actual time=0.055..0.128 rows=85 loops=1)
-    |         Merge Cond: (m1.player = m2.player)
-    |         ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.038..0.042 rows=13 loops=1)
-    |               Sort Key: m1.player
-    |               Sort Method: quicksort  Memory: 25kB
-    |               ->  Seq Scan on moves m1  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.009..0.012 rows=13 loops=1)
-    |         ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.013..0.016 rows=79 loops=1)
-    |               Sort Key: m2.player
-    |               Sort Method: quicksort  Memory: 25kB
-    |               ->  Seq Scan on moves m2  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.001..0.003 rows=13 loops=1)
-    |   ->  Materialize  (cost=161.29..284.83 rows=6728 width=80) (actual time=0.028..0.420 rows=3649 loops=1)
-    |         ->  Merge Join  (cost=161.29..268.01 rows=6728 width=80) (actual time=0.026..0.110 rows=85 loops=1)
-    |               Merge Cond: (m3.player = m4.player)
-    |               ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.012..0.015 rows=13 loops=1)
-    |                     Sort Key: m3.player
-    |                     Sort Method: quicksort  Memory: 25kB
-    |                     ->  Seq Scan on moves m3  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.000..0.001 rows=13 loops=1)
-    |               ->  Sort  (cost=80.64..83.54 rows=1160 width=40) (actual time=0.012..0.019 rows=79 loops=1)
-    |                     Sort Key: m4.player
-    |                     Sort Method: quicksort  Memory: 25kB
-    |                     ->  Seq Scan on moves m4  (cost=0.00..21.60 rows=1160 width=40) (actual time=0.001..0.003 rows=13 loops=1)
-    | Planning time: 0.598 ms
-    | Execution time: 4.149 ms
-    +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+.. image:: ./images/query-plan-winning-games.png
 
 Beats me!  The query planner does a ton of fancy tricks to minimize the cost of
 looking up the data.  But you can see it does two seq scans (m2 and m4), but
@@ -454,8 +379,8 @@ not in a nested loop.  And it sorts the data, and, and then merges everything to
 Big O vs SQL query plans: apples and oranges
 --------------------------------------------
 
-Big O notation is all about when the size of the data is so big that constants
-can be disregarded, and worst-case conditions always apply.
+Big O notation is all about when the size of the data is so big that
+constants can be disregarded, and worst-case conditions always apply.
 
 So when you do a query like::
 
@@ -468,59 +393,42 @@ If there was an index on title, in the worst case, you would assume that every
 book had the title 'abc', so the index is useless, and you might as well just
 scan the underlying table.
 
-Database query planners don't work that way.  They keep statistics on the data
-and expect those statistics to be predictive.
+Database query planners don't work that way.  They keep statistics on
+the data and expect those statistics to be predictive.
 
 Incidental: how to not use SQL and not use O(n^4) time
 ------------------------------------------------------
 
-Do what the database does!  Build a binary search tree for your data.  Then use
-that binary tree to check for matches.  And rebalance that tree after every
-insert and update.
+Really, it's possible to do this check in O(n) time:
 
-Now let's add another few indexes
----------------------------------
+*   After each move, check if that move makes two in a row (O(n)).
 
-::
+*   Figure out what direction the line is going (vertical, horizontal,
+    diagonal up, diagonal down).
 
-    # create index on moves (player);
+*   Look at the checkers just on either side of the line for three in a
+    row.
 
-    # explain analyze select  * from v2;
-    +--------------------------------------------------------------------------------------------------------------------+
-    |                                                     QUERY PLAN                                                     |
-    +--------------------------------------------------------------------------------------------------------------------+
-    | Hash Join  (cost=1.36..2.66 rows=1 width=40) (actual time=0.028..0.035 rows=5 loops=1)                             |
-    |   Hash Cond: ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND ((m1.move_row + 1) = m2.move_row)) |
-    |   ->  Seq Scan on moves m1  (cost=0.00..1.13 rows=13 width=40) (actual time=0.004..0.008 rows=13 loops=1)          |
-    |   ->  Hash  (cost=1.13..1.13 rows=13 width=40) (actual time=0.009..0.009 rows=13 loops=1)                          |
-    |         Buckets: 1024  Batches: 1  Memory Usage: 1kB                                                               |
-    |         ->  Seq Scan on moves m2  (cost=0.00..1.13 rows=13 width=40) (actual time=0.001..0.002 rows=13 loops=1)    |
-    | Planning time: 0.387 ms                                                                                            |
-    | Execution time: 0.066 ms                                                                                           |
-    +--------------------------------------------------------------------------------------------------------------------+
+*   If you find three in a row, look at the checkers on the outside of
+    that line.
 
-    # create index on moves (move_row);
 
-    # explain analyze select * from v2;
-    +--------------------------------------------------------------------------------------------------------------------+
-    |                                                     QUERY PLAN                                                     |
-    +--------------------------------------------------------------------------------------------------------------------+
-    | Hash Join  (cost=1.36..2.66 rows=1 width=40) (actual time=0.031..0.058 rows=5 loops=1)                             |
-    |   Hash Cond: ((m1.player = m2.player) AND (m1.move_column = m2.move_column) AND ((m1.move_row + 1) = m2.move_row)) |
-    |   ->  Seq Scan on moves m1  (cost=0.00..1.13 rows=13 width=40) (actual time=0.004..0.008 rows=13 loops=1)          |
-    |   ->  Hash  (cost=1.13..1.13 rows=13 width=40) (actual time=0.009..0.009 rows=13 loops=1)                          |
-    |         Buckets: 1024  Batches: 1  Memory Usage: 1kB                                                               |
-    |         ->  Seq Scan on moves m2  (cost=0.00..1.13 rows=13 width=40) (actual time=0.001..0.006 rows=13 loops=1)    |
-    | Planning time: 0.236 ms                                                                                            |
-    | Execution time: 0.102 ms                                                                                           |
-    +--------------------------------------------------------------------------------------------------------------------+
+My favorite approach
+--------------------
+
+1.  Generate every possible winning game and store them in a hash-indexed
+    table.
+
+2.  After every move, compare the board to that indexed table:
+
+**O(1)**
 
 The punchlines
 --------------
 
 *   Tables are not just arrays on disk!
-*   Database constraints catch bugs and often improve performance dramatically
-*   query planners may execute the one SQL query in many different ways depending on available indexes
-
+*   Database constraints often improve performance dramatically
+*   Query planners may execute the same SQL query in different ways
+    depending on available indexes
 
 .. vim: set syntax=rst:

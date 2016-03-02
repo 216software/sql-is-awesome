@@ -2,51 +2,18 @@
 SQL Is Awesome
 ++++++++++++++
 
+Get all this stuff here: `https://github.com/216software/sql-is-awesome <https://github.com/216software/sql-is-awesome>`_.
+
 .. contents::
 
 .. include:: connect-4.txt
 
 .. include:: nurse-schedule.txt
 
+.. include:: parking-reservations.txt
 
-How I modeled parking spaces for SpotHero
-=========================================
+.. include:: soapbox.txt
 
-
-Soapbox Time
-============
-
-Some times, you have to cross the streams [#]_.  However, today's necessary
-evil often becomes tomorrow's standard practice.
-
-
-REST API interfaces
--------------------
-
-EAV tables
-----------
-
-App code constraints
---------------------
-
-n+1 queries
------------
-
-denormalization
----------------
-
-Last notes
-==========
-
-*   There are no new ideas.
-
-*   Find your moral compass.
-
-
-Footnotes
-=========
-
-.. [#] Watch Ghostbusters if you don't know what I'm talking about.  What the heck are you paying to learn here?
-
+.. include:: footnotes.txt
 
 .. vim: set syntax=rst:

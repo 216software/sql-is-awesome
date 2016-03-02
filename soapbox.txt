@@ -1,0 +1,29 @@
+Soapbox Time
+============
+
+Some times, you have to cross the streams [#]_.  However, today's necessary
+evil often becomes tomorrow's standard practice.
+
+REST API interfaces
+-------------------
+
+EAV tables
+----------
+
+App code constraints
+--------------------
+
+n+1 queries
+-----------
+
+denormalization
+---------------
+
+Last notes
+----------
+
+*   There are no new ideas.
+
+*   Find your moral compass.
+
+.. vim: set syntax=rst:
