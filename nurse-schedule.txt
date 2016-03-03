@@ -36,7 +36,8 @@ Make some tables
 
     create table shift_requirements (
         shift text not null references shifts (title),
-        requirement text not null references credentials (title)
+        requirement text not null references credentials (title),
+        primary key (shift, requirement)
     );
 
     create table nurses (
@@ -45,7 +46,8 @@ Make some tables
 
     create table nurse_credentials (
         nurse text not null references nurses (display_name),
-        credential text not null references credentials (title)
+        credential text not null references credentials (title),
+        primary key (nurse, credential)
     );
 
 

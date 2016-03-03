@@ -6,7 +6,8 @@ Fun with parking spaces
 Find nearby vacant spots
 ------------------------
 
-::
+There are GIS functions in most databases, so getting nearby spots is
+pretty easy and you don't have write out that distance formula::
 
     select *
     from garages g
@@ -15,13 +16,14 @@ Find nearby vacant spots
     where not exists (
         select *
         from reservations r
-        where (r.start, r.end) overlaps (%(start)s, %(end)s)
+        where g.title = r.garage
+        and (r.start, r.end) overlaps (%(start)s, %(end)s)
     )
 
     -- grab spots within 500 meters
-    and st_dwithin(g.position, %(user position)s, 500)
+    and st_dwithin(g.location, %(user position)s, 500)
 
-    order by st_distance(g.position, %(user position)s)
+    order by st_distance(g.location, %(user position)s)
     limit 100
 
 Another example of query plan magic
@@ -40,15 +42,17 @@ Each garage had their own price rules, for example:
 
 *   Arrive 8 AM to 8 PM and pay $10
 *   Arrive after 8 PM until 8 AM and pay $5
+*   Fridays and Saturdays, 8 PM to 8 AM is $20
 
-*   But if there's a baseball game that night, the night time price goes
-    to $20, starting at 4 PM.
+*   But if there's a baseball game any night, the night time price goes
+    to $30, starting at 4 PM.
 
 *   If I have 10 spots, when I'm down to the last two, the price doubles
 
 This part was tricky :)
 
-
-
+The solution I used was to find prices under all relevant rules and then
+use a plain ol' max(...) aggregate function on the price column to find
+the highest-priced rule.
 
 .. vim: set syntax=rst:

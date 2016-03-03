@@ -1,7 +1,7 @@
 Footnotes
 =========
 
-.. [#] That's a real primary key, not some garbage Ruby on Rails id sequence primary key.  Rails did ot of things wrong, but misleading a generation of programmers to think of databases as glorified flat files might be their grreatest sin.
+.. [#] That's a real primary key, not some garbage Ruby on Rails sequence primary key.  Rails did many different things wrong, but misleading a generation of programmers to think of databases as flat files might be their greatest sin.
 
 .. [#] Watch Ghostbusters if you don't know what I'm talking about.  What the heck are you paying to learn here?
 

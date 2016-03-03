@@ -10,6 +10,8 @@ REST API interfaces
 EAV tables
 ----------
 
+http://blog.tplus1.com/blog/2008/10/12/some-research-on-genericeav-tables/
+
 App code constraints
 --------------------
 

@@ -5,6 +5,7 @@ SQL Is Awesome
 Get all this stuff here: `https://github.com/216software/sql-is-awesome <https://github.com/216software/sql-is-awesome>`_.
 
 .. contents::
+    :depth: 1
 
 .. include:: connect-4.txt
 

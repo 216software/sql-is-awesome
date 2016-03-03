@@ -412,6 +412,7 @@ Really, it's possible to do this check in O(n) time:
 *   If you find three in a row, look at the checkers on the outside of
     that line.
 
+But then I would lose my example :)
 
 My favorite approach
 --------------------
@@ -424,12 +425,7 @@ My favorite approach
 Punchlines
 ----------
 
-*   Tables are not just arrays on disk!
-
 *   Database constraints often improve performance dramatically
-
-*   Query planners may execute the same SQL query in different ways
-    depending on available indexes
 
 *   Store big nasty queries in views for easy reuse
 
