@@ -13,6 +13,43 @@ Get all this stuff here: `https://github.com/216software/sql-is-awesome <https:/
 
 .. include:: parking-reservations.txt
 
+
+working with trees of data
+==========================
+
+Two kinds of trees:
+
+*   arbitrarilly deep and self-referential
+
+    Reddit comments work like this.  I can comment on a post, you can
+    reply to me, and I can reply, and on and on.
+
+    File-system folders work like this too.
+
+*   Fixed-depth trees
+
+    Biological taxonomy is a good example.  Every organism fits in to
+    this hierarchy:
+
+    Domain, Kingdom, Phylum, Class, Order, Family, Genus, and Species
+
+
+
+Rendering results
+=================
+
+*   JSON
+*   CSV
+*   XML
+
+
+Compute moving averages
+=======================
+
+
+
+
+
 .. include:: soapbox.txt
 
 .. include:: footnotes.txt
