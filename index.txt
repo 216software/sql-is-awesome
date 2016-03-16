@@ -47,8 +47,73 @@ Compute moving averages
 =======================
 
 
+Rewrite CSV files only when stuff changes
+=========================================
 
+I have hundreds of shipping containers.  I want to only rewrite the
+manifests when something changed.
 
+I check the timestamp of the manifest file on the filesystem, and then
+compare that to the max timestamp in the database.  If the database
+change is more recent, I rerun the file.
+
+The slow way is to do the checks one-by-one.
+
+A python loop checks each file's mtime, and then checks the database for
+the most recent update for that container.
+
+A faster way is to make a table of all the max timestamps in the
+database and then make that into a python dictionary, and use that in
+the python loop.
+
+An even faster way is to do the filesystem checks in the database using
+python.
+
+TODO: figure out if there's some fast way to look up lots of mtimes in
+batch mode.
+
+Write a python function that runs inside SQL
+============================================
+
+http://stackoverflow.com/questions/2082686/how-do-i-cast-a-string-to-integer-and-have-0-in-case-of-error-in-the-cast-with-p
+
+This is where python is great::
+
+    def validate_as_integer(s):
+
+        """
+        Accept strings.
+
+        Return an integer IFF the string can be converted to a positive
+        integer.
+
+        Otherwise, return None.
+
+        >>> validate_as_integer("99")
+        99
+
+        >>> validate_as_integer("abc") is None
+        True
+
+        >>> validate_as_integer("-99) is None
+        True
+
+        >>> validate_as_integer("-99) is None
+        True
+
+        """
+
+        try:
+            i = int(s)
+
+            if i > 0:
+                return i
+
+            else:
+                return None
+
+        except ValueError:
+            return None
 
 .. include:: soapbox.txt
 
